@@ -8,6 +8,15 @@ import utility
 
 class PD1:
     def __init__(self, img, unaries, numlabels, w):
+        """
+        Edge weights are added using callback functions.
+
+        :param img:
+        :param unaries:
+        :param numlabels:
+        :param w:
+        :return:
+        """
         self.img = img
         self.unaries = unaries
         self.numlabels = numlabels
@@ -37,18 +46,40 @@ class PD1:
             return 0.0
 
         # Not same label
-        # np.sum(np.power(x1 - x2, 2), 0)
         energy = self.w * np.exp(-self.l * np.power(np.linalg.norm(x1 - x2, 2), 2))
         return energy
 
     def precompdmin(self):
+        # TODO
         pass
+        # Label combinations
+        # comb = []
+        # for a in self.labels:
+        #     for b in self.labels:
+        #         if a != b:
+        #             comb.append([a, b])
+        #
+        # distances = []
+        # for y in self.ysize:
+        #     for x in self.xsize:
+        #         for l in comb:
+        #             distances.append(self.d(l[0], l[1]))
 
     def makegraph(self):
         grid = utility.Nodegrid(self.ysize, self.xsize)
         return grid
 
     def edgecallback(self, node_i, node_j, graph):
+        """
+        Interior edges: Represent the balance variables ypq and yqp.
+        Increasing the flow on ypq decreases the flow on yqp.
+        The capacity represents the maximal allowed flow.
+
+        :param node_i:
+        :param node_j:
+        :param graph:
+        :return:
+        """
 
         # Get coordinates
 
@@ -60,17 +91,21 @@ class PD1:
 
         if (self.assignedLabel[yi, xi] == self.currentLabel) \
                 or (self.assignedLabel[yj, xj] == self.currentLabel):
+            # Keep height
+
             # cap_pq
             graph.add_edge(node_i, node_j, capacity=0.0)
 
             # cap_qp
-            graph.add_edge(node_i, node_j, capacity=0.0)
+            graph.add_edge(node_j, node_i, capacity=0.0)
         else:
+            # Maintain feasibility.
+
             # cap_pq
             graph.add_edge(node_i, node_j, capacity=0.0)
 
             # cap_qp
-            graph.add_edge(node_i, node_j, capacity=0.0)
+            graph.add_edge(node_j, node_i, capacity=0.0)
 
     def nodecallback(self, node_i, graph):
         pass
