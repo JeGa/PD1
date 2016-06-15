@@ -1,6 +1,8 @@
 import numpy as np
 import logging
 import networkx
+import os
+from scipy import misc
 
 
 def loadunaryfile(filename):
@@ -20,6 +22,12 @@ def loadunaryfile(filename):
     return data
 
 
+def readimg(imagename):
+    img = misc.imread(os.path.join("data", imagename))
+    img = np.array(img, dtype=np.float64) / 255
+    return img
+
+
 class Node:
     def __init__(self, y, x):
         self.y = y
@@ -34,6 +42,13 @@ class Nodegrid:
         self.g = networkx.DiGraph()
         for nodelist in self.nodegrid:
             self.g.add_nodes_from(nodelist)
+
+        # Source node
+        self.source = Node(-1, -1)
+        self.sink = Node(-1, -1)
+
+        self.g.add_node(self.source)
+        self.g.add_node(self.sink)
 
         self.ysize = ysize
         self.xsize = xsize
@@ -52,50 +67,59 @@ class Nodegrid:
                 node_i = self.nodegrid[y][x]
 
                 # Node
-                nodecallback(node_i, self.g)
+                nodecallback(node_i)
 
                 # Right edge
                 node_j = self.nodegrid[y][x + 1]
-                edgecallback(node_i, node_j, self.g)
+                edgecallback(node_i, node_j)
 
                 # Down edge
                 node_j = self.nodegrid[y + 1][x]
-                edgecallback(node_i, node_j, self.g)
+                edgecallback(node_i, node_j)
 
         # Last column
         for y in range(self.ysize - 1):
             node_i = self.nodegrid[y][self.xsize - 1]
 
             # Node
-            nodecallback(node_i, self.g)
+            nodecallback(node_i)
 
             # Down edge
             node_j = self.nodegrid[y + 1][self.xsize - 1]
-            edgecallback(node_i, node_j, self.g)
+            edgecallback(node_i, node_j)
 
         # Last row
         for x in range(self.xsize - 1):
             node_i = self.nodegrid[self.ysize - 1][x]
 
             # Node
-            nodecallback(node_i, self.g)
+            nodecallback(node_i)
 
             # Right edge
             node_j = self.nodegrid[self.ysize - 1][x + 1]
-            edgecallback(node_i, node_j, self.g)
+            edgecallback(node_i, node_j)
 
         # Last node
-        nodecallback(self.nodegrid[self.ysize - 1][self.xsize - 1], self.g)
+        nodecallback(self.nodegrid[self.ysize - 1][self.xsize - 1])
 
     def loopnodes(self, callback):
         logging.info("Iterate through nodes.")
         for y in range(self.ysize):
             for x in range(self.xsize):
-                callback(self.nodegrid[y][x], self.g)
+                callback(self.nodegrid[y][x])
+
+    def add_edge(self, node_i, node_j, capacity):
+        self.g.add_edge(node_i, node_j, capacity=capacity)
+
+    def add_source_edge(self, node, capacity):
+        self.g.add_edge(self.source, node, capacity=capacity)
+
+    def add_sink_edge(self, node, capacity):
+        self.g.add_edge(node, self.sink, capacity=capacity)
 
     def maxflow(self):
         logging.info("Calculate max flow.")
-        _, partition = self.g.minimum_cut()
+        _, partition = networkx.minimum_cut(self.g, self.source, self.sink)
         return partition
 
     def draw(self):
@@ -103,4 +127,11 @@ class Nodegrid:
         for nodelist in self.nodegrid:
             for node in nodelist:
                 positions[node] = [node.x, node.y]
-        networkx.draw_networkx(self.g, pos=positions, node_size=10, with_labels=False)
+
+        pad = 2
+        nodesize = 10
+        positions[self.source] = [self.xsize / 2 - 0.5, -pad]
+        positions[self.sink] = [self.xsize / 2 - 0.5, self.ysize + pad]
+        networkx.draw_networkx(self.g, pos=positions,
+                               node_size=nodesize, with_labels=False,
+                               width=0.5)
