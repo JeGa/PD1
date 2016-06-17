@@ -357,11 +357,12 @@ class PD1:
         def edge(node_i):
             nonlocal flows
 
-            flowsource = flows[self.currentGraph.source, node_i]
-            cap = self.currentGraph.getcap(node_i)
+            if self.currentGraph.hassourcepath(node_i):
+                flowsource = flows[self.currentGraph.source][node_i]
+                cap = self.currentGraph.getcap(node_i)
 
-            if flowsource < cap:
-                self.primals[node_i.pos()] = self.currentLabel
+                if flowsource < cap:
+                    self.primals[node_i.pos()] = self.currentLabel
 
         self.currentGraph.loopnodes(edge)
 

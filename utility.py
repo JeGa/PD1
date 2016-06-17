@@ -198,6 +198,10 @@ class Nodegrid:
     def getcap(self, node):
         return self.g[self.source][node]["capacity"]
 
+    def hassourcepath(self, node):
+        return (self.source, node) in self.g.edges()
+        #return node in self.g[self.source]
+
     def draw(self):
         positions = {}
         for nodelist in self.nodegrid:
