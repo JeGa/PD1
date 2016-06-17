@@ -18,6 +18,66 @@ import os
 import utility
 
 
+class Duals:
+    """
+    Saves the duals and balance variables.
+    - For each node there is one dual variable (h_xp).
+    - For each edge there are two balance variables (for the active label).
+
+    Only save one direction ypq,a since ypq,a = -yqp,a.
+    The edges per node are right and down (except the far right and bottom ones).
+
+    index:
+    - 0: right
+    - 1: down
+
+    The balance variables and duals could also be saved in the
+    networkx graph. However, it is nicer to have them outside in
+    a separate class.
+    """
+
+    def __init__(self, ysize, xsize):
+        self.ysize = ysize
+        self.xsize = xsize
+
+        self.duals = np.zeros((self.ysize, self.xsize))
+
+        self.balance = np.zeros((self.ysize, self.xsize, 2))
+
+    def balance(self, pos_i, pos_j):
+        if self._right(pos_i, pos_j):
+            return self.balance[pos_i.y, pos_i.x, 0]
+        if self._down(pos_i, pos_j):
+            return self.balance[pos_i.y, pos_i.x, 1]
+
+        if self._left(pos_i, pos_j):
+            return -self.balance[pos_j.y, pos_j.x, 0]
+        if self._up(pos_i, pos_j):
+            return -self.balance[pos_j.y, pos_j.x, 1]
+
+        raise IndexError
+
+    def _right(self, pos_i, pos_j):
+        if pos_i.y == pos_j.y and pos_i.x == pos_j.x - 1:
+            return True
+        return False
+
+    def _left(self, pos_i, pos_j):
+        if pos_i.y == pos_j.y and pos_i.x == pos_j.x + 1:
+            return True
+        return False
+
+    def _up(self, pos_i, pos_j):
+        if pos_i.x == pos_j.x and pos_i.y == pos_j.y + 1:
+            return True
+        return False
+
+    def _down(self, pos_i, pos_j):
+        if pos_i.x == pos_j.x and pos_i.y == pos_j.y - 1:
+            return True
+        return False
+
+
 class PD1:
     def __init__(self, img, unaries, numlabels, w, l):
         """
@@ -53,11 +113,18 @@ class PD1:
         self.currentGraph = None
 
     def initPrimals(self):
+        logging.info("Initialize primals.")
         return np.random.randint(0, self.numlabels, (self.ysize, self.xsize))
 
     def initDuals(self):
+        logging.info("initialize duals.")
 
-        pass
+        self.duals = Duals()
+
+        def edge(pos_i, pos_j):
+            pass
+
+        utility.Nodegrid.loopedges_raw(edge, self.ysize, self.xsize)
 
     def d(self, y1, y2, x1, x2):
         """
@@ -89,11 +156,6 @@ class PD1:
 
         :return: dmin.
         """
-
-        # Using the graph class since it already provides edge traversal.
-        # Creating a temporary dummy graph.
-        dummy = utility.Nodegrid(self.ysize, self.xsize)
-
         # Initialize to first edge distance.
         dmin = self.d(1, 0, self.img[0, 0], self.img[0, 1])
 
@@ -107,7 +169,7 @@ class PD1:
             if temp < dmin:
                 dmin = temp
 
-        dummy.loopedges(edge)
+        utility.Nodegrid.loopedges_raw(edge, self.ysize, self.xsize)
 
         return dmin
 
