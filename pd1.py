@@ -14,6 +14,7 @@ import numpy as np
 import logging
 import matplotlib.pyplot as plt
 import os
+import random
 
 import utility
 
@@ -184,8 +185,8 @@ class PD1:
 
             if activelabel_i != activelabel_j:
                 value = w * dmin / 2
-                duals.setbalance(pos_i, pos_j, value, activelabel_i)
-                duals.setbalance(pos_i, pos_j, -value, activelabel_j)
+                duals.setbalance(pos_i, pos_j, activelabel_i, value)
+                duals.setbalance(pos_i, pos_j, activelabel_j, -value)
 
         utility.Nodegrid.loopedges_raw(edge, self.ysize, self.xsize)
 
@@ -344,7 +345,7 @@ class PD1:
             value = self.duals.getbalance(
                 node_i.pos(), node_j.pos(), self.currentLabel) + fpq - fqp
             self.duals.setbalance(node_i.pos(), node_j.pos(), self.currentLabel, value)
-            self.duals.setbalance(node_j.pos(), node_i.pos(), self.currentLabel, value)
+            # self.duals.setbalance(node_j.pos(), node_i.pos(), self.currentLabel, value)
 
         self.currentGraph.loopedges(edge)
 
@@ -372,7 +373,7 @@ class PD1:
             if self.primals[pos_i] == self.currentLabel and (
                         self.primals[pos_j] == self.currentLabel):
                 self.duals.setbalance(pos_i, pos_j, self.currentLabel, 0.0)
-                self.duals.setbalance(pos_j, pos_i, self.currentLabel, 0.0)
+                # self.duals.setbalance(pos_j, pos_i, self.currentLabel, 0.0)
 
         utility.Nodegrid.loopedges_raw(edge, self.ysize, self.xsize)
 
@@ -386,6 +387,22 @@ class PD1:
 
             self.update_duals_primals()
             self.post_edit_duals()
+
+    def getLabeledImage(self):
+        # Assign color.
+        colors = []
+        for i in self.labels:
+            colors.append([random.randint(0, 255),
+                           random.randint(0, 255),
+                           random.randint(0, 255)])
+
+        img = np.empty((self.ysize, self.xsize, 3))
+
+        for y in range(self.ysize):
+            for x in range(self.xsize):
+                img[y, x] = colors[int(self.primals[y, x])]
+
+        return img
 
 
 def main():
@@ -404,10 +421,11 @@ def main():
     unaries = -np.log(unaries)
     numlabels = unaries.shape[2]
 
-    w = 1
+    w = 100
     l = 0.5
     pd1 = PD1(img, unaries, numlabels, w, l)
     pd1.segment()
+    img = pd1.getLabeledImage()
 
     logging.info("Save image.")
     plt.imshow(img)

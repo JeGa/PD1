@@ -105,6 +105,37 @@ class Nodegrid:
         # Last node
         nodecallback(self.nodegrid[self.ysize - 1][self.xsize - 1])
 
+    def loopedges(self, edgecallback):
+        logging.info("Iterate through graph.")
+
+        for y in range(self.ysize - 1):
+            for x in range(self.xsize - 1):
+                node_i = self.nodegrid[y][x]
+
+                # Right edge
+                node_j = self.nodegrid[y][x + 1]
+                edgecallback(node_i, node_j)
+
+                # Down edge
+                node_j = self.nodegrid[y + 1][x]
+                edgecallback(node_i, node_j)
+
+        # Last column
+        for y in range(self.ysize - 1):
+            node_i = self.nodegrid[y][self.xsize - 1]
+
+            # Down edge
+            node_j = self.nodegrid[y + 1][self.xsize - 1]
+            edgecallback(node_i, node_j)
+
+        # Last row
+        for x in range(self.xsize - 1):
+            node_i = self.nodegrid[self.ysize - 1][x]
+
+            # Right edge
+            node_j = self.nodegrid[self.ysize - 1][x + 1]
+            edgecallback(node_i, node_j)
+
     @staticmethod
     def loopedges_raw(callback, ysize, xsize):
         logging.info("Iterate through edges.")
@@ -161,7 +192,7 @@ class Nodegrid:
 
     def maxflow(self):
         logging.info("Calculate max flow.")
-        _, flows = networkx.minimum_cut(self.g, self.source, self.sink)
+        _, flows = networkx.maximum_flow(self.g, self.source, self.sink)
         return flows
 
     def getcap(self, node):
