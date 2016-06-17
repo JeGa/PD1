@@ -41,12 +41,19 @@ class PD1:
 
         # Primal variables (initial random label assignment)
         self.primals = self.initPrimals()
-        self.currentLabel = None
 
         # Dual variables
 
+        # These variables change for each iteration.
+        self.currentLabel = None
+        self.currentGraph = None
+
     def initPrimals(self):
         return np.random.randint(0, self.numlabels, (self.ysize, self.xsize))
+
+    def initDuals(self):
+        # TODO
+        pass
 
     def d(self, y1, y2, x1, x2):
         """
@@ -65,6 +72,10 @@ class PD1:
         # Not same label
         energy = np.exp(-self.l * np.power(np.linalg.norm(x1 - x2, 2), 2))
         return energy
+
+    def h(self):
+        # TODO
+        pass
 
     def precompdmin(self):
         """
@@ -100,37 +111,54 @@ class PD1:
         grid = utility.Nodegrid(self.ysize, self.xsize)
         return grid
 
-    def edgecallback(self, node_i, node_j, graph):
+    def edgecallback(self, node_i, node_j):
         """
         Interior edges: Represent the balance variables ypq and yqp.
-        Increasing the flow on ypq decreases the flow on yqp.
-        The capacity represents the maximal allowed flow.
+        Increasing the flow on ypq decreases the flow on yqp for the particular label.
 
-        :param node_i:
-        :param node_j:
-        :param graph:
-        :return:
+        :param node_i: Starting node of the edge.
+        :param node_j: End node of the edge.
         """
         if (self.primals[node_i.pos()] == self.currentLabel) \
                 or (self.primals[node_j.pos()] == self.currentLabel):
             # Keep height
 
             # cap_pq
-            graph.add_edge(node_i, node_j, capacity=0.0)
+            self.currentGraph.add_edge(node_i, node_j, 0.0)
 
             # cap_qp
-            graph.add_edge(node_j, node_i, capacity=0.0)
+            self.currentGraph.add_edge(node_j, node_i, 0.0)
         else:
             # Maintain feasibility.
 
+            # TODO: Balance variable
+            cap = ((self.w * self.dmin) / 2) - 1
+
             # cap_pq
-            graph.add_edge(node_i, node_j, capacity=0.0)
+            self.currentGraph.add_edge(node_i, node_j, cap)
 
             # cap_qp
-            graph.add_edge(node_j, node_i, capacity=0.0)
+            self.currentGraph.add_edge(node_j, node_i, cap)
 
-    def nodecallback(self, node_i, graph):
-        pass
+    def nodecallback(self, node_i):
+        # Height of vertex (active label)
+        hxp = self.h(node_i)
+        # Height of label c (current label in iteration)
+        hc = self.h(node_i, self.currentLabel)
+
+        # Case 1
+        if hc < hxp:
+            cap = hxp - hc
+            self.currentGraph.add_source_edge(node_i, cap)
+
+        # Case 2
+        if hc >= hxp:
+            cap = hc - hxp
+            self.currentGraph.add_sink_edge(node_i, cap)
+
+        # Case 3
+        if self.primals[node_i.pos()] == self.currentLabel:
+            self.currentGraph.add_source_edge(node_i, 1)
 
     def update_duals_primals(self, c):
         """
