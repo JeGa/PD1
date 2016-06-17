@@ -22,7 +22,7 @@ class Duals:
     """
     Saves the duals and balance variables.
     - For each node there is one dual variable (h_xp).
-    - For each edge there are two balance variables (for the active label).
+    - For each edge there are two balance variables for each label.
 
     Only save one direction ypq,a since ypq,a = -yqp,a.
     The edges per node are right and down (except the far right and bottom ones).
@@ -36,13 +36,13 @@ class Duals:
     a separate class.
     """
 
-    def __init__(self, ysize, xsize):
+    def __init__(self, ysize, xsize, numlabels):
         self.ysize = ysize
         self.xsize = xsize
 
         self.duals = np.zeros((self.ysize, self.xsize))
 
-        self.balance = np.zeros((self.ysize, self.xsize, 2))
+        self.balance = np.zeros((self.ysize, self.xsize, 2, numlabels))
 
     def setdual(self, pos_i, value):
         self.duals[pos_i] = value
@@ -50,26 +50,30 @@ class Duals:
     def getdual(self, pos_i):
         return self.duals[pos_i]
 
-    def setbalance(self, pos_i, pos_j, value):
+    def setbalance(self, pos_i, pos_j, label, value):
         if self._right(pos_i, pos_j):
-            self.balance[pos_i[0], pos_i[1], 0] = value
+            self.balance[pos_i[0], pos_i[1], 0, label] = value
         elif self._down(pos_i, pos_j):
-            self.balance[pos_i[0], pos_i[1], 1] = value
+            self.balance[pos_i[0], pos_i[1], 1, label] = value
         else:
             raise IndexError("Error setting balance variable.")
 
-    def getbalance(self, pos_i, pos_j):
+    def getbalance(self, pos_i, pos_j, label):
         if self._right(pos_i, pos_j):
-            return self.balance[pos_i[0], pos_i[1], 0]
+            return self.balance[pos_i[0], pos_i[1], 0, label]
         if self._down(pos_i, pos_j):
-            return self.balance[pos_i[0], pos_i[1], 1]
+            return self.balance[pos_i[0], pos_i[1], 1, label]
 
         if self._left(pos_i, pos_j):
-            return -self.balance[pos_j[0], pos_j[1], 0]
+            return -self.balance[pos_j[0], pos_j[1], 0, label]
         if self._up(pos_i, pos_j):
-            return -self.balance[pos_j[0], pos_j[1], 1]
+            return -self.balance[pos_j[0], pos_j[1], 1, label]
 
         raise IndexError("Error getting balance variable.")
+
+    def getbalanceNeighbors(self, pos_i, label):
+        pass
+        # TODO
 
     def _right(self, pos_i, pos_j):
         if pos_i[0] == pos_j[0] and pos_i[1] == pos_j[1] - 1:
@@ -131,19 +135,34 @@ class PD1:
         return np.random.randint(0, self.numlabels, (self.ysize, self.xsize))
 
     def initDuals(self):
-        logging.info("initialize duals.")
+        logging.info("initialize balance variables.")
 
-        duals = Duals(self.ysize, self.xsize)
+        duals = Duals(self.ysize, self.xsize, self.numlabels)
         w = self.w
         dmin = self.dmin
 
         def edge(pos_i, pos_j):
             nonlocal duals, w, dmin
 
-            value = w * dmin / 2
-            duals.setbalance(pos_i, pos_j, value)
+            activelabel_i = self.primals[pos_i]
+            activelabel_j = self.primals[pos_j]
+
+            if activelabel_i != activelabel_j:
+                value = w * dmin / 2
+                duals.setbalance(pos_i, pos_j, value, activelabel_i)
+                duals.setbalance(pos_i, pos_j, -value, activelabel_j)
 
         utility.Nodegrid.loopedges_raw(edge, self.ysize, self.xsize)
+
+        logging.info("Initialize duals.")
+
+        def node(pos_i):
+            nonlocal duals
+
+            #value = self.getminheight(pos_i)
+            #duals.setdual(pos_i, value)
+
+        utility.Nodegrid.loopnodes_raw(node, self.ysize, self.xsize)
 
         return duals
 
@@ -165,8 +184,13 @@ class PD1:
         energy = np.exp(-self.l * np.power(np.linalg.norm(x1 - x2, 2), 2))
         return energy
 
-    def h(self):
-        # TODO
+    def h(self, pos_i, label):
+        unary = self.unaries[pos_i[0], pos_i[1], label]
+
+        # For all neighboring balance variables.
+        neighbors = self.duals.getbalanceNeighbors(pos_i)
+
+    def getminheight(self, pos_i):
         pass
 
     def precompdmin(self):
