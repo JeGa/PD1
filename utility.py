@@ -106,7 +106,7 @@ class Nodegrid:
         nodecallback(self.nodegrid[self.ysize - 1][self.xsize - 1])
 
     @staticmethod
-    def loopedges(callback, ysize, xsize):
+    def loopedges_raw(callback, ysize, xsize):
         logging.info("Iterate through edges.")
 
         for y in range(ysize - 1):
@@ -136,6 +136,13 @@ class Nodegrid:
             # Right edge
             pos_j = (ysize - 1, x + 1)
             callback(pos_i, pos_j)
+
+    @staticmethod
+    def loopnodes_raw(callback, ysize, xsize):
+        logging.info("Iterate through nodes.")
+        for y in range(ysize):
+            for x in range(xsize):
+                callback((y, x))
 
     def loopnodes(self, callback):
         logging.info("Iterate through nodes.")
