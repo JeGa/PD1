@@ -1,3 +1,12 @@
+"""
+Solve the metric labeling problem: Minimize the following energy function.
+
+E(y) = SUM_nodes(unary(yi, xi)) + SUM_edges(pairwise(yi, yj, xi, xj))
+
+The aim is to always ensure for all feasible primal dual solutions the
+relaxed complementary primal slackness condition.
+"""
+
 import numpy as np
 import logging
 import matplotlib.pyplot as plt
@@ -7,15 +16,14 @@ import utility
 
 
 class PD1:
-    def __init__(self, img, unaries, numlabels, w):
+    def __init__(self, img, unaries, numlabels, w, l):
         """
         Edge weights are added using callback functions.
 
-        :param img:
-        :param unaries:
-        :param numlabels:
-        :param w:
-        :return:
+        :param img: Numpy array with rgb image data.
+        :param unaries: Numpy array with unaries for each pixel and label.
+        :param numlabels: Number of lables.
+        :param w: Weighting parameter for pairwise terms.
         """
         self.img = img
         self.unaries = unaries
@@ -26,15 +34,24 @@ class PD1:
         self.xsize = img.shape[1]
 
         self.w = w
+        self.l = l
         self.dmin = self.precompdmin()
 
-        # Label assignment (primal)
-        self.assignedLabel = np.empty((self.ysize, self.xsize))
+        logging.info("Dmin = " + str(self.dmin))
+
+        # Primal variables (initial random label assignment)
+        self.primals = self.initPrimals()
         self.currentLabel = None
+
+        # Dual variables
+
+    def initPrimals(self):
+        return np.random.randint(0, self.numlabels, (self.ysize, self.xsize))
 
     def d(self, y1, y2, x1, x2):
         """
-        Returns pairwise energy between node i and node j using the Potts model.
+        Returns pairwise energy between node i and node j using the
+        contrast sensitive Potts model.
 
         :param y1: Label of i node.
         :param y2: Label of j node.
@@ -46,24 +63,38 @@ class PD1:
             return 0.0
 
         # Not same label
-        energy = self.w * np.exp(-self.l * np.power(np.linalg.norm(x1 - x2, 2), 2))
+        energy = np.exp(-self.l * np.power(np.linalg.norm(x1 - x2, 2), 2))
         return energy
 
     def precompdmin(self):
-        # TODO
-        pass
-        # Label combinations
-        # comb = []
-        # for a in self.labels:
-        #     for b in self.labels:
-        #         if a != b:
-        #             comb.append([a, b])
-        #
-        # distances = []
-        # for y in self.ysize:
-        #     for x in self.xsize:
-        #         for l in comb:
-        #             distances.append(self.d(l[0], l[1]))
+        """
+        Compute the minimum of all distances between all neighboring pixel.
+        Since the Potts model is used it suffices to just use two distinct labels.
+        (Not all label combinations need to be computed)
+
+        :return: dmin.
+        """
+
+        # Using the graph class since it already provides edge traversal.
+        # Creating a temporary dummy graph.
+        dummy = utility.Nodegrid(self.ysize, self.xsize)
+
+        # Initialize to first edge distance.
+        dmin = self.d(1, 0, self.img[0, 0], self.img[0, 1])
+
+        def edge(node_i, node_j):
+            nonlocal dmin
+
+            temp = self.d(1, 0,
+                          self.img[node_i.pos()],
+                          self.img[node_j.pos()])
+
+            if temp < dmin:
+                dmin = temp
+
+        dummy.loopedges(edge)
+
+        return dmin
 
     def makegraph(self):
         grid = utility.Nodegrid(self.ysize, self.xsize)
@@ -80,17 +111,8 @@ class PD1:
         :param graph:
         :return:
         """
-
-        # Get coordinates
-
-        yi = node_i.y
-        xi = node_i.x
-
-        yj = node_j.y
-        xj = node_j.x
-
-        if (self.assignedLabel[yi, xi] == self.currentLabel) \
-                or (self.assignedLabel[yj, xj] == self.currentLabel):
+        if (self.primals[node_i.pos()] == self.currentLabel) \
+                or (self.primals[node_j.pos()] == self.currentLabel):
             # Keep height
 
             # cap_pq
@@ -140,7 +162,9 @@ def main():
     unaries = -np.log(unaries)
     numlabels = unaries.shape[2]
 
-    # TODO
+    w = 1
+    l = 0.5
+    pd1 = PD1(img, unaries, numlabels, w, l)
 
     logging.info("Save image.")
     plt.imshow(img)

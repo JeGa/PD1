@@ -33,6 +33,9 @@ class Node:
         self.y = y
         self.x = x
 
+    def pos(self):
+        return self.y, self.x
+
 
 class Nodegrid:
     def __init__(self, ysize, xsize):
@@ -101,6 +104,37 @@ class Nodegrid:
 
         # Last node
         nodecallback(self.nodegrid[self.ysize - 1][self.xsize - 1])
+
+    def loopedges(self, callback):
+        logging.info("Iterate through edges.")
+
+        for y in range(self.ysize - 1):
+            for x in range(self.xsize - 1):
+                node_i = self.nodegrid[y][x]
+
+                # Right edge
+                node_j = self.nodegrid[y][x + 1]
+                callback(node_i, node_j)
+
+                # Down edge
+                node_j = self.nodegrid[y + 1][x]
+                callback(node_i, node_j)
+
+        # Last column
+        for y in range(self.ysize - 1):
+            node_i = self.nodegrid[y][self.xsize - 1]
+
+            # Down edge
+            node_j = self.nodegrid[y + 1][self.xsize - 1]
+            callback(node_i, node_j)
+
+        # Last row
+        for x in range(self.xsize - 1):
+            node_i = self.nodegrid[self.ysize - 1][x]
+
+            # Right edge
+            node_j = self.nodegrid[self.ysize - 1][x + 1]
+            callback(node_i, node_j)
 
     def loopnodes(self, callback):
         logging.info("Iterate through nodes.")
