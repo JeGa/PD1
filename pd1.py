@@ -44,36 +44,50 @@ class Duals:
 
         self.balance = np.zeros((self.ysize, self.xsize, 2))
 
-    def balance(self, pos_i, pos_j):
+    def setdual(self, pos_i, value):
+        self.duals[pos_i] = value
+
+    def getdual(self, pos_i):
+        return self.duals[pos_i]
+
+    def setbalance(self, pos_i, pos_j, value):
         if self._right(pos_i, pos_j):
-            return self.balance[pos_i.y, pos_i.x, 0]
+            self.balance[pos_i[0], pos_i[1], 0] = value
+        elif self._down(pos_i, pos_j):
+            self.balance[pos_i[0], pos_i[1], 1] = value
+        else:
+            raise IndexError("Error setting balance variable.")
+
+    def getbalance(self, pos_i, pos_j):
+        if self._right(pos_i, pos_j):
+            return self.balance[pos_i[0], pos_i[1], 0]
         if self._down(pos_i, pos_j):
-            return self.balance[pos_i.y, pos_i.x, 1]
+            return self.balance[pos_i[0], pos_i[1], 1]
 
         if self._left(pos_i, pos_j):
-            return -self.balance[pos_j.y, pos_j.x, 0]
+            return -self.balance[pos_j[0], pos_j[1], 0]
         if self._up(pos_i, pos_j):
-            return -self.balance[pos_j.y, pos_j.x, 1]
+            return -self.balance[pos_j[0], pos_j[1], 1]
 
-        raise IndexError
+        raise IndexError("Error getting balance variable.")
 
     def _right(self, pos_i, pos_j):
-        if pos_i.y == pos_j.y and pos_i.x == pos_j.x - 1:
+        if pos_i[0] == pos_j[0] and pos_i[1] == pos_j[1] - 1:
             return True
         return False
 
     def _left(self, pos_i, pos_j):
-        if pos_i.y == pos_j.y and pos_i.x == pos_j.x + 1:
+        if pos_i[0] == pos_j[0] and pos_i[1] == pos_j[1] + 1:
             return True
         return False
 
     def _up(self, pos_i, pos_j):
-        if pos_i.x == pos_j.x and pos_i.y == pos_j.y + 1:
+        if pos_i[1] == pos_j[1] and pos_i[0] == pos_j[0] + 1:
             return True
         return False
 
     def _down(self, pos_i, pos_j):
-        if pos_i.x == pos_j.x and pos_i.y == pos_j.y - 1:
+        if pos_i[1] == pos_j[1] and pos_i[0] == pos_j[0] - 1:
             return True
         return False
 
@@ -106,7 +120,7 @@ class PD1:
         self.primals = self.initPrimals()
 
         # Dual variables
-        self.duals, self.balance = self.initDuals()
+        self.duals = self.initDuals()
 
         # These variables change for each iteration.
         self.currentLabel = None
@@ -119,12 +133,19 @@ class PD1:
     def initDuals(self):
         logging.info("initialize duals.")
 
-        self.duals = Duals()
+        duals = Duals(self.ysize, self.xsize)
+        w = self.w
+        dmin = self.dmin
 
         def edge(pos_i, pos_j):
-            pass
+            nonlocal duals, w, dmin
+
+            value = w * dmin / 2
+            duals.setbalance(pos_i, pos_j, value)
 
         utility.Nodegrid.loopedges_raw(edge, self.ysize, self.xsize)
+
+        return duals
 
     def d(self, y1, y2, x1, x2):
         """
