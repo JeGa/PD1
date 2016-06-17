@@ -161,8 +161,11 @@ class Nodegrid:
 
     def maxflow(self):
         logging.info("Calculate max flow.")
-        _, partition = networkx.minimum_cut(self.g, self.source, self.sink)
-        return partition
+        _, flows = networkx.minimum_cut(self.g, self.source, self.sink)
+        return flows
+
+    def getcap(self, node):
+        return self.g[self.source][node]["capacity"]
 
     def draw(self):
         positions = {}

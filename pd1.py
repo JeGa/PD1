@@ -289,8 +289,8 @@ class PD1:
         else:
             # Maintain feasibility.
 
-            # TODO: Balance variable
-            cap = ((self.w * self.dmin) / 2) - 1
+            cap = ((self.w * self.dmin) / 2) - self.duals.getbalance(
+                node_i.pos(), node_j.pos(), self.currentLabel)
 
             # cap_pq
             self.currentGraph.add_edge(node_i, node_j, cap)
@@ -300,9 +300,10 @@ class PD1:
 
     def nodecallback(self, node_i):
         # Height of vertex (active label)
-        hxp = self.h(node_i)
+        hxp = self.h(node_i.pos(), self.primals[node_i.pos()])
+
         # Height of label c (current label in iteration)
-        hc = self.h(node_i, self.currentLabel)
+        hc = self.h(node_i.pos(), self.currentLabel)
 
         # Case 1
         if hc < hxp:
@@ -325,33 +326,66 @@ class PD1:
         (Holding all constraints for getting feasible solution and
         the relaxed complementary slackness)
         """
-        self.currentGraph.maxflow()
+        logging.info("Update duals and primals.")
+
+        # Set graph edges and capacities.
+        self.currentGraph.loop(self.edgecallback, self.nodecallback)
+
+        flows = self.currentGraph.maxflow()
 
         # Update duals based on the resulting flow on the
         # interior edges.
+        def edge(node_i, node_j):
+            nonlocal flows
 
-        # Balance variables
-        # ypqc = ypqc + fpq - fqp
+            fpq = flows[node_i][node_j]
+            fqp = flows[node_j][node_i]
+
+            value = self.duals.getbalance(
+                node_i.pos(), node_j.pos(), self.currentLabel) + fpq - fqp
+            self.duals.setbalance(node_i.pos(), node_j.pos(), self.currentLabel, value)
+            self.duals.setbalance(node_j.pos(), node_i.pos(), self.currentLabel, value)
+
+        self.currentGraph.loopedges(edge)
 
         # Height (based on balance variables and unary)
         # hpc = hpc + fp # s -> p
         # hpc = hpc - fp # p -> t
 
+        # Update primals: Should the label be changed to c?
         # If there is an unsaturated path between source and node p.
         # (flow < capacity)
-        # self.primals[node] = self.currentLabel
+        def edge(node_i):
+            nonlocal flows
+
+            flowsource = flows[self.currentGraph.source, node_i]
+            cap = self.currentGraph.getcap(node_i)
+
+            if flowsource < cap:
+                self.primals[node_i.pos()] = self.currentLabel
 
     def post_edit_duals(self):
         # If xp = xq = c 0> ypqc = yqpc = 0
-        pass
+        logging.info("Post edit duals.")
+
+        def edge(pos_i, pos_j):
+            if self.primals[pos_i] == self.currentLabel and (
+                        self.primals[pos_j] == self.currentLabel):
+                self.duals.setbalance(pos_i, pos_j, self.currentLabel, 0.0)
+                self.duals.setbalance(pos_j, pos_i, self.currentLabel, 0.0)
+
+        utility.Nodegrid.loopedges_raw(edge, self.ysize, self.xsize)
 
     def segment(self):
         for c in self.labels:
+            logging.info("Label c = " + str(c))
+
             # Set required information for each iteration.
             self.currentLabel = c
             self.currentGraph = self.makegraph()
 
             self.update_duals_primals()
+            self.post_edit_duals()
 
 
 def main():
@@ -373,6 +407,7 @@ def main():
     w = 1
     l = 0.5
     pd1 = PD1(img, unaries, numlabels, w, l)
+    pd1.segment()
 
     logging.info("Save image.")
     plt.imshow(img)
