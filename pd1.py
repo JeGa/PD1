@@ -5,6 +5,9 @@ E(y) = SUM_nodes(unary(yi, xi)) + SUM_edges(pairwise(yi, yj, xi, xj))
 
 The aim is to always ensure for all feasible primal dual solutions the
 relaxed complementary primal slackness condition.
+
+TODO:
+- Dmin for each pixel or for all?
 """
 
 import numpy as np
@@ -43,6 +46,7 @@ class PD1:
         self.primals = self.initPrimals()
 
         # Dual variables
+        self.duals, self.balance = self.initDuals()
 
         # These variables change for each iteration.
         self.currentLabel = None
@@ -52,7 +56,7 @@ class PD1:
         return np.random.randint(0, self.numlabels, (self.ysize, self.xsize))
 
     def initDuals(self):
-        # TODO
+
         pass
 
     def d(self, y1, y2, x1, x2):
@@ -93,12 +97,12 @@ class PD1:
         # Initialize to first edge distance.
         dmin = self.d(1, 0, self.img[0, 0], self.img[0, 1])
 
-        def edge(node_i, node_j):
+        def edge(pos_i, pos_j):
             nonlocal dmin
 
             temp = self.d(1, 0,
-                          self.img[node_i.pos()],
-                          self.img[node_j.pos()])
+                          self.img[pos_i],
+                          self.img[pos_j])
 
             if temp < dmin:
                 dmin = temp
@@ -160,17 +164,39 @@ class PD1:
         if self.primals[node_i.pos()] == self.currentLabel:
             self.currentGraph.add_source_edge(node_i, 1)
 
-    def update_duals_primals(self, c):
+    def update_duals_primals(self):
         """
         Update the duals having currently label c.
         Construct a graph and rearrange the heights of the duals.
-
-        :return:
+        (Holding all constraints for getting feasible solution and
+        the relaxed complementary slackness)
         """
+        self.currentGraph.maxflow()
+
+        # Update duals based on the resulting flow on the
+        # interior edges.
+
+        # Balance variables
+        # ypqc = ypqc + fpq - fqp
+
+        # Height (based on balance variables and unary)
+        # hpc = hpc + fp # s -> p
+        # hpc = hpc - fp # p -> t
+
+        # If there is an unsaturated path between source and node p.
+        # (flow < capacity)
+        # self.primals[node] = self.currentLabel
+
+    def post_edit_duals(self):
+        # If xp = xq = c 0> ypqc = yqpc = 0
         pass
 
     def segment(self):
         for c in self.labels:
+            # Set required information for each iteration.
+            self.currentLabel = c
+            self.currentGraph = self.makegraph()
+
             self.update_duals_primals()
 
 

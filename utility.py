@@ -105,36 +105,37 @@ class Nodegrid:
         # Last node
         nodecallback(self.nodegrid[self.ysize - 1][self.xsize - 1])
 
-    def loopedges(self, callback):
+    @staticmethod
+    def loopedges(callback, ysize, xsize):
         logging.info("Iterate through edges.")
 
-        for y in range(self.ysize - 1):
-            for x in range(self.xsize - 1):
-                node_i = self.nodegrid[y][x]
+        for y in range(ysize - 1):
+            for x in range(xsize - 1):
+                pos_i = (y, x)
 
                 # Right edge
-                node_j = self.nodegrid[y][x + 1]
-                callback(node_i, node_j)
+                pos_j = (y, x + 1)
+                callback(pos_i, pos_j)
 
                 # Down edge
-                node_j = self.nodegrid[y + 1][x]
-                callback(node_i, node_j)
+                pos_j = (y + 1, x)
+                callback(pos_i, pos_j)
 
         # Last column
-        for y in range(self.ysize - 1):
-            node_i = self.nodegrid[y][self.xsize - 1]
+        for y in range(ysize - 1):
+            pos_i = (y, xsize - 1)
 
             # Down edge
-            node_j = self.nodegrid[y + 1][self.xsize - 1]
-            callback(node_i, node_j)
+            pos_j = (y + 1, xsize - 1)
+            callback(pos_i, pos_j)
 
         # Last row
-        for x in range(self.xsize - 1):
-            node_i = self.nodegrid[self.ysize - 1][x]
+        for x in range(xsize - 1):
+            pos_i = (ysize - 1, x)
 
             # Right edge
-            node_j = self.nodegrid[self.ysize - 1][x + 1]
-            callback(node_i, node_j)
+            pos_j = (ysize - 1, x + 1)
+            callback(pos_i, pos_j)
 
     def loopnodes(self, callback):
         logging.info("Iterate through nodes.")
