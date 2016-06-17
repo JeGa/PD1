@@ -200,8 +200,6 @@ class PD1:
 
         utility.Nodegrid.loopnodes_raw(node, self.ysize, self.xsize)
 
-        return duals
-
     def d(self, y1, y2, x1, x2):
         """
         Returns pairwise energy between node i and node j using the
@@ -365,6 +363,8 @@ class PD1:
             if flowsource < cap:
                 self.primals[node_i.pos()] = self.currentLabel
 
+        self.currentGraph.loopnodes(edge)
+
     def post_edit_duals(self):
         # If xp = xq = c 0> ypqc = yqpc = 0
         logging.info("Post edit duals.")
@@ -376,6 +376,12 @@ class PD1:
                 # self.duals.setbalance(pos_j, pos_i, self.currentLabel, 0.0)
 
         utility.Nodegrid.loopedges_raw(edge, self.ysize, self.xsize)
+
+        def node(pos_i):
+            value = self.getminheight(pos_i)
+            self.duals.setdual(pos_i, value)
+
+        utility.Nodegrid.loopnodes_raw(node, self.ysize, self.xsize)
 
     def segment(self):
         for c in self.labels:
@@ -421,7 +427,7 @@ def main():
     unaries = -np.log(unaries)
     numlabels = unaries.shape[2]
 
-    w = 100
+    w = 10
     l = 0.5
     pd1 = PD1(img, unaries, numlabels, w, l)
     pd1.segment()
