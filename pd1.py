@@ -157,7 +157,7 @@ class PD1:
         self.primals = self.initPrimals()
 
         # Dual variables
-        self.duals = self.initDuals()
+        self.initDuals()
 
         # These variables change for each iteration.
         self.currentLabel = None
@@ -170,7 +170,9 @@ class PD1:
     def initDuals(self):
         logging.info("initialize balance variables.")
 
-        duals = Duals(self.ysize, self.xsize, self.numlabels)
+        self.duals = Duals(self.ysize, self.xsize, self.numlabels)
+
+        duals = self.duals
         w = self.w
         dmin = self.dmin
 
@@ -192,8 +194,8 @@ class PD1:
         def node(pos_i):
             nonlocal duals
 
-            # value = self.getminheight(pos_i)
-            # duals.setdual(pos_i, value)
+            value = self.getminheight(pos_i)
+            duals.setdual(pos_i, value)
 
         utility.Nodegrid.loopnodes_raw(node, self.ysize, self.xsize)
 
@@ -221,10 +223,22 @@ class PD1:
         unary = self.unaries[pos_i[0], pos_i[1], label]
 
         # For all neighboring balance variables.
-        neighbors = self.duals.getbalanceNeighbors(pos_i)
+        neighbors = self.duals.getbalanceNeighbors(pos_i, label)
+
+        sumofbalance = sum(neighbors)
+
+        height = unary + sumofbalance
+        return height
 
     def getminheight(self, pos_i):
-        pass
+        minheight = self.h(pos_i, self.labels[0])
+        for label in range(1, self.labels[-1]):
+            height = self.h(pos_i, label)
+
+            if height < minheight:
+                minheight = height
+
+        return minheight
 
     def precompdmin(self):
         """
