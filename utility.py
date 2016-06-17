@@ -106,7 +106,7 @@ class Nodegrid:
         nodecallback(self.nodegrid[self.ysize - 1][self.xsize - 1])
 
     def loopedges(self, edgecallback):
-        logging.info("Iterate through graph.")
+        logging.info("Iterate through edges.")
 
         for y in range(self.ysize - 1):
             for x in range(self.xsize - 1):
@@ -199,8 +199,7 @@ class Nodegrid:
         return self.g[self.source][node]["capacity"]
 
     def hassourcepath(self, node):
-        return (self.source, node) in self.g.edges()
-        #return node in self.g[self.source]
+        return node in self.g[self.source]
 
     def draw(self):
         positions = {}

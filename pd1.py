@@ -385,15 +385,22 @@ class PD1:
         utility.Nodegrid.loopnodes_raw(node, self.ysize, self.xsize)
 
     def segment(self):
-        for c in self.labels:
-            logging.info("Label c = " + str(c))
 
-            # Set required information for each iteration.
-            self.currentLabel = c
-            self.currentGraph = self.makegraph()
+        # while True:
+        for i in range(2):
+            #oldprimals = self.primals.copy()
+            for c in self.labels:
+                logging.info("Label c = " + str(c))
 
-            self.update_duals_primals()
-            self.post_edit_duals()
+                # Set required information for each iteration.
+                self.currentLabel = c
+                self.currentGraph = self.makegraph()
+
+                self.update_duals_primals()
+                self.post_edit_duals()
+
+                # if np.array_equal(self.primals, oldprimals):
+                # break
 
     def getLabeledImage(self):
         # Assign color.
@@ -428,7 +435,7 @@ def main():
     unaries = -np.log(unaries)
     numlabels = unaries.shape[2]
 
-    w = 10
+    w = 50
     l = 0.5
     pd1 = PD1(img, unaries, numlabels, w, l)
     pd1.segment()
