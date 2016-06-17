@@ -72,8 +72,34 @@ class Duals:
         raise IndexError("Error getting balance variable.")
 
     def getbalanceNeighbors(self, pos_i, label):
-        pass
-        # TODO
+        """
+        Returns the values of the balance variables of all neighbors.
+        (4-Neighborhood)
+
+        :param pos_i: Position of the node whose neighbors should be queried for.
+        :param label: Label of the balance variable.
+        :return: List of the balance variables value (2 - 4 entries).
+        """
+        neighbors = []
+
+        y = pos_i[0]
+        x = pos_i[1]
+
+        right = (y, x + 1)
+        down = (y + 1, x)
+        left = (y, x - 1)
+        up = (y - 1, x)
+
+        if self._isvalid(right):
+            neighbors.append(self.getbalance(pos_i, right, label))
+        if self._isvalid(down):
+            neighbors.append(self.getbalance(pos_i, down, label))
+        if self._isvalid(left):
+            neighbors.append(self.getbalance(pos_i, left, label))
+        if self._isvalid(up):
+            neighbors.append(self.getbalance(pos_i, up, label))
+
+        return neighbors
 
     def _right(self, pos_i, pos_j):
         if pos_i[0] == pos_j[0] and pos_i[1] == pos_j[1] - 1:
@@ -94,6 +120,13 @@ class Duals:
         if pos_i[1] == pos_j[1] and pos_i[0] == pos_j[0] - 1:
             return True
         return False
+
+    def _isvalid(self, pos):
+        y, x = pos
+
+        if y < 0 or x < 0 or y > self.ysize - 1 or x > self.xsize:
+            return False
+        return True
 
 
 class PD1:
@@ -159,8 +192,8 @@ class PD1:
         def node(pos_i):
             nonlocal duals
 
-            #value = self.getminheight(pos_i)
-            #duals.setdual(pos_i, value)
+            # value = self.getminheight(pos_i)
+            # duals.setdual(pos_i, value)
 
         utility.Nodegrid.loopnodes_raw(node, self.ysize, self.xsize)
 
