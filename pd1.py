@@ -333,7 +333,7 @@ class PD1:
         if (self.primals[node_i.pos()] == self.currentLabel) or (
                     self.primals[node_j.pos()] == self.currentLabel):
             # Keep height
-
+            pass
             # cap_pq
             self.currentGraph.add_edge(node_i, node_j, 0.0)
 
@@ -449,7 +449,7 @@ class PD1:
 
     def segment(self):
         # while True:
-        for i in range(2):
+        for i in range(1):
             # oldprimals = self.primals.copy()
             for c in self.labels:
                 logging.info("---------------------")
@@ -490,8 +490,8 @@ class PD1:
 def main():
     logging.basicConfig(level=logging.INFO)
 
-    imagename = "1_27_s.bmp"
-    unaryfilename = "1_27_s.c_unary.txt"
+    imagename = "12_33_s.bmp"
+    unaryfilename = "12_33_s.c_unary.txt"
 
     logging.info("Read image.")
     img = utility.readimg(imagename)
@@ -503,8 +503,8 @@ def main():
     unaries = -np.log(unaries)
     numlabels = unaries.shape[2]
 
-    w = 1
-    l = 0.5
+    w = 0.8
+    l = 0.05
     pd1 = PD1(img, unaries, numlabels, w, l)
     pd1.segment()
     img = pd1.get_labeled_image()
