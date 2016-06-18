@@ -72,7 +72,7 @@ class Duals:
 
         raise IndexError("Error getting balance variable.")
 
-    def getbalanceNeighbors(self, pos_i, label):
+    def getbalanceneighbors(self, pos_i, label):
         """
         Returns the values of the balance variables of all neighbors.
         (4-Neighborhood)
@@ -102,22 +102,26 @@ class Duals:
 
         return neighbors
 
-    def _right(self, pos_i, pos_j):
+    @staticmethod
+    def _right(pos_i, pos_j):
         if pos_i[0] == pos_j[0] and pos_i[1] == pos_j[1] - 1:
             return True
         return False
 
-    def _left(self, pos_i, pos_j):
+    @staticmethod
+    def _left(pos_i, pos_j):
         if pos_i[0] == pos_j[0] and pos_i[1] == pos_j[1] + 1:
             return True
         return False
 
-    def _up(self, pos_i, pos_j):
+    @staticmethod
+    def _up(pos_i, pos_j):
         if pos_i[1] == pos_j[1] and pos_i[0] == pos_j[0] + 1:
             return True
         return False
 
-    def _down(self, pos_i, pos_j):
+    @staticmethod
+    def _down(pos_i, pos_j):
         if pos_i[1] == pos_j[1] and pos_i[0] == pos_j[0] - 1:
             return True
         return False
@@ -155,23 +159,22 @@ class PD1:
         logging.info("Dmin = " + str(self.dmin))
 
         # Primal variables (initial random label assignment)
-        self.primals = self.initPrimals()
+        self.primals = self.init_primals()
 
         # Dual variables
-        self.initDuals()
+        self.duals = Duals(self.ysize, self.xsize, self.numlabels)
+        self.init_duals()
 
         # These variables change for each iteration.
         self.currentLabel = None
         self.currentGraph = None
 
-    def initPrimals(self):
+    def init_primals(self):
         logging.info("Initialize primals.")
         return np.random.randint(0, self.numlabels, (self.ysize, self.xsize))
 
-    def initDuals(self):
+    def init_duals(self):
         logging.info("initialize balance variables.")
-
-        self.duals = Duals(self.ysize, self.xsize, self.numlabels)
 
         duals = self.duals
         w = self.w
@@ -215,14 +218,14 @@ class PD1:
             return 0.0
 
         # Not same label
-        energy = np.exp(-self.l * np.power(np.linalg.norm(x1 - x2, 2), 2))
+        energy = np.exp(-self.l * np.power(np.linalg.norm(x1 - x2), 2))
         return energy
 
     def h(self, pos_i, label):
         unary = self.unaries[pos_i[0], pos_i[1], label]
 
         # For all neighboring balance variables.
-        neighbors = self.duals.getbalanceNeighbors(pos_i, label)
+        neighbors = self.duals.getbalanceneighbors(pos_i, label)
 
         sumofbalance = sum(neighbors)
 
@@ -386,9 +389,9 @@ class PD1:
 
     def segment(self):
 
-        # while True:
-        for i in range(2):
-            #oldprimals = self.primals.copy()
+        while True:
+            # for i in range(2):
+            oldprimals = self.primals.copy()
             for c in self.labels:
                 logging.info("Label c = " + str(c))
 
@@ -399,8 +402,14 @@ class PD1:
                 self.update_duals_primals()
                 self.post_edit_duals()
 
-                # if np.array_equal(self.primals, oldprimals):
-                # break
+                self.showimg(self.getLabeledImage())
+
+            if np.array_equal(self.primals, oldprimals):
+                break
+
+    def showimg(self, img):
+        plt.imshow(img)
+        plt.show(block=False)
 
     def getLabeledImage(self):
         # Assign color.
@@ -442,9 +451,10 @@ def main():
     img = pd1.getLabeledImage()
 
     logging.info("Save image.")
+    plt.imsave("img_out", img)
+
     plt.imshow(img)
     plt.show()
-    plt.imsave("img_out", img)
 
 
 if __name__ == '__main__':
