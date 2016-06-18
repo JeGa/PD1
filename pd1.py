@@ -5,9 +5,6 @@ E(y) = SUM_nodes(unary(yi, xi)) + SUM_edges(pairwise(yi, yj, xi, xj))
 
 The aim is to always ensure for all feasible primal dual solutions the
 relaxed complementary primal slackness condition.
-
-TODO:
-- Dmin for each pixel or for all?
 """
 
 import numpy as np
@@ -86,10 +83,7 @@ class Duals:
         y = pos_i[0]
         x = pos_i[1]
 
-        right = (y, x + 1)
-        down = (y + 1, x)
-        left = (y, x - 1)
-        up = (y - 1, x)
+        right, down, left, up = self.get_neighbor_coord(y, x)
 
         if self._isvalid(right):
             neighbors.append(self.getbalance(pos_i, right, label))
@@ -101,6 +95,15 @@ class Duals:
             neighbors.append(self.getbalance(pos_i, up, label))
 
         return neighbors
+
+    @staticmethod
+    def get_neighbor_coord(y, x):
+        right = (y, x + 1)
+        down = (y + 1, x)
+        left = (y, x - 1)
+        up = (y - 1, x)
+
+        return right, down, left, up
 
     @staticmethod
     def _right(pos_i, pos_j):
@@ -127,9 +130,13 @@ class Duals:
         return False
 
     def _isvalid(self, pos):
+        return Duals.isvalid(pos, self.ysize, self.xsize)
+
+    @staticmethod
+    def isvalid(pos, ysize, xsize):
         y, x = pos
 
-        if y < 0 or x < 0 or y > self.ysize - 1 or x > self.xsize:
+        if y < 0 or x < 0 or y > ysize - 1 or x > xsize - 1:
             return False
         return True
 
@@ -154,9 +161,9 @@ class PD1:
 
         self.w = w
         self.l = l
-        self.dmin = self.precompdmin()
+        self.dmin = self.precompdmin_each()
 
-        logging.info("Dmin = " + str(self.dmin))
+        # logging.info("Dmin = " + str(self.dmin))
 
         # Primal variables (initial random label assignment)
         self.primals = self.init_primals()
@@ -187,7 +194,7 @@ class PD1:
             activelabel_j = self.primals[pos_j]
 
             if activelabel_i != activelabel_j:
-                value = w * dmin / 2
+                value = w * dmin[pos_i] / 2
                 duals.setbalance(pos_i, pos_j, activelabel_i, value)
                 duals.setbalance(pos_i, pos_j, activelabel_j, -value)
 
@@ -222,6 +229,15 @@ class PD1:
         return energy
 
     def h(self, pos_i, label):
+        """
+        Height of the pixel with the given label.
+
+        height = unary cost + balance of all neighbors and given label
+
+        :param pos_i: Pixel position tuple.
+        :param label: Label to query for.
+        :return: Height.
+        """
         unary = self.unaries[pos_i[0], pos_i[1], label]
 
         # For all neighboring balance variables.
@@ -233,6 +249,13 @@ class PD1:
         return height
 
     def getminheight(self, pos_i):
+        """
+        Minimum height of pixel over all labels.
+        (Using the current balance variables).
+
+        :param pos_i: Pixel position tuple.
+        :return: Minimal height of pixel/vertex.
+        """
         minheight = self.h(pos_i, self.labels[0])
         for label in range(1, self.labels[-1]):
             height = self.h(pos_i, label)
@@ -242,6 +265,32 @@ class PD1:
 
         return minheight
 
+    def precompdmin_each(self):
+        logging.info("Compute dmin.")
+
+        dmin = np.empty((self.ysize, self.xsize))
+        dmin[:, :] = np.inf
+
+        def node(pos_i):
+            nonlocal dmin
+
+            min = np.inf
+
+            # Get all neighbors
+            for pos_j in Duals.get_neighbor_coord(pos_i[0], pos_i[1]):
+                if Duals.isvalid(pos_j, self.ysize, self.xsize):
+                    temp = self.d(1, 0,
+                                  self.img[pos_i],
+                                  self.img[pos_j])
+                    if temp < min:
+                        min = temp
+
+            dmin[pos_i] = min
+
+        utility.Nodegrid.loopnodes_raw(node, self.ysize, self.xsize)
+
+        return dmin
+
     def precompdmin(self):
         """
         Compute the minimum of all distances between all neighboring pixel.
@@ -250,6 +299,8 @@ class PD1:
 
         :return: dmin.
         """
+        logging.info("Compute dmin.")
+
         # Initialize to first edge distance.
         dmin = self.d(1, 0, self.img[0, 0], self.img[0, 1])
 
@@ -279,8 +330,8 @@ class PD1:
         :param node_i: Starting node of the edge.
         :param node_j: End node of the edge.
         """
-        if (self.primals[node_i.pos()] == self.currentLabel) \
-                or (self.primals[node_j.pos()] == self.currentLabel):
+        if (self.primals[node_i.pos()] == self.currentLabel) or (
+                    self.primals[node_j.pos()] == self.currentLabel):
             # Keep height
 
             # cap_pq
@@ -291,7 +342,7 @@ class PD1:
         else:
             # Maintain feasibility.
 
-            cap = ((self.w * self.dmin) / 2) - self.duals.getbalance(
+            cap = ((self.w * self.dmin[node_i.pos()]) / 2) - self.duals.getbalance(
                 node_i.pos(), node_j.pos(), self.currentLabel)
 
             # cap_pq
@@ -307,18 +358,27 @@ class PD1:
         # Height of label c (current label in iteration)
         hc = self.h(node_i.pos(), self.currentLabel)
 
+        if hxp == np.inf:
+            self.currentGraph.add_source_edge(node_i, np.inf)
+            return
+        elif hc == np.inf:
+            self.currentGraph.add_sink_edge(node_i, np.inf)
+            return
+
         # Case 1
-        if hc < hxp:
+        elif hc < hxp:
             cap = hxp - hc
+            # print("source: " + str(cap))
             self.currentGraph.add_source_edge(node_i, cap)
 
         # Case 2
-        if hc >= hxp:
+        elif hc >= hxp:
             cap = hc - hxp
+            # print("sink: " + str(cap))
             self.currentGraph.add_sink_edge(node_i, cap)
 
         # Case 3
-        if self.primals[node_i.pos()] == self.currentLabel:
+        elif self.primals[node_i.pos()] == self.currentLabel:
             self.currentGraph.add_source_edge(node_i, 1)
 
     def update_duals_primals(self):
@@ -377,7 +437,6 @@ class PD1:
             if self.primals[pos_i] == self.currentLabel and (
                         self.primals[pos_j] == self.currentLabel):
                 self.duals.setbalance(pos_i, pos_j, self.currentLabel, 0.0)
-                # self.duals.setbalance(pos_j, pos_i, self.currentLabel, 0.0)
 
         utility.Nodegrid.loopedges_raw(edge, self.ysize, self.xsize)
 
@@ -385,14 +444,15 @@ class PD1:
             value = self.getminheight(pos_i)
             self.duals.setdual(pos_i, value)
 
-        utility.Nodegrid.loopnodes_raw(node, self.ysize, self.xsize)
+            # TODO
+            # utility.Nodegrid.loopnodes_raw(node, self.ysize, self.xsize)
 
     def segment(self):
-
-        while True:
-            # for i in range(2):
-            oldprimals = self.primals.copy()
+        # while True:
+        for i in range(2):
+            # oldprimals = self.primals.copy()
             for c in self.labels:
+                logging.info("---------------------")
                 logging.info("Label c = " + str(c))
 
                 # Set required information for each iteration.
@@ -402,19 +462,18 @@ class PD1:
                 self.update_duals_primals()
                 self.post_edit_duals()
 
-                self.showimg(self.getLabeledImage())
+                # if np.array_equal(self.primals, oldprimals):
+                # break
 
-            if np.array_equal(self.primals, oldprimals):
-                break
-
-    def showimg(self, img):
+    @staticmethod
+    def showimg(img):
         plt.imshow(img)
         plt.show(block=False)
 
-    def getLabeledImage(self):
+    def get_labeled_image(self):
         # Assign color.
         colors = []
-        for i in self.labels:
+        for _ in self.labels:
             colors.append([random.randint(0, 255),
                            random.randint(0, 255),
                            random.randint(0, 255)])
@@ -431,8 +490,8 @@ class PD1:
 def main():
     logging.basicConfig(level=logging.INFO)
 
-    imagename = "12_33_s.bmp"
-    unaryfilename = "12_33_s.c_unary.txt"
+    imagename = "1_27_s.bmp"
+    unaryfilename = "1_27_s.c_unary.txt"
 
     logging.info("Read image.")
     img = utility.readimg(imagename)
@@ -444,11 +503,11 @@ def main():
     unaries = -np.log(unaries)
     numlabels = unaries.shape[2]
 
-    w = 50
+    w = 1
     l = 0.5
     pd1 = PD1(img, unaries, numlabels, w, l)
     pd1.segment()
-    img = pd1.getLabeledImage()
+    img = pd1.get_labeled_image()
 
     logging.info("Save image.")
     plt.imsave("img_out", img)
