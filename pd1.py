@@ -445,11 +445,11 @@ class PD1:
             self.duals.setdual(pos_i, value)
 
             # TODO
-            # utility.Nodegrid.loopnodes_raw(node, self.ysize, self.xsize)
+        #utility.Nodegrid.loopnodes_raw(node, self.ysize, self.xsize)
 
     def segment(self):
         # while True:
-        for i in range(1):
+        for i in range(30):
             # oldprimals = self.primals.copy()
             for c in self.labels:
                 logging.info("---------------------")
@@ -490,8 +490,8 @@ class PD1:
 def main():
     logging.basicConfig(level=logging.INFO)
 
-    imagename = "12_33_s.bmp"
-    unaryfilename = "12_33_s.c_unary.txt"
+    imagename = "1_27_s.bmp"
+    unaryfilename = "1_27_s.c_unary.txt"
 
     logging.info("Read image.")
     img = utility.readimg(imagename)
@@ -503,8 +503,8 @@ def main():
     unaries = -np.log(unaries)
     numlabels = unaries.shape[2]
 
-    w = 0.8
-    l = 0.05
+    w = 100000
+    l = 0.5
     pd1 = PD1(img, unaries, numlabels, w, l)
     pd1.segment()
     img = pd1.get_labeled_image()
